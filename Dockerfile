@@ -1,41 +1,20 @@
-# syntax = docker/dockerfile:1
+FROM node:18-alpine
 
-# Adjust NODE_VERSION as desired
-ARG NODE_VERSION=20.18.0
-FROM node:${NODE_VERSION}-slim AS base
+ENV NODE_ENV=production
+ARG NPM_BUILD="cd Ultraviolet-App; npm install --omit=dev"
+EXPOSE 8080/tcp
 
-LABEL fly_launch_runtime="Node.js"
+LABEL maintainer="TitaniumNetwork Ultraviolet Team"
+LABEL summary="Ultraviolet Proxy Image"
+LABEL description="Example application of Ultraviolet which can be deployed in production."
 
-# Node.js app lives here
 WORKDIR /app
 
-# Set production environment
-ENV NODE_ENV="production"
-ARG YARN_VERSION=9.12.2
-RUN npm install -g yarn@$YARN_VERSION --force
+COPY ["./Ultraviolet-App/package.json", "Ultraviolet-App/package-lock.json", "./"]
+RUN apk add --upgrade --no-cache python3 make g++
+RUN $NPM_BUILD
 
-
-# Throw-away build stage to reduce size of final image
-FROM base AS build
-
-# Install packages needed to build node modules
-RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential node-gyp pkg-config python-is-python3
-
-# Install node modules
-COPY package-lock.json package.json yarn.lock ./
-RUN yarn install --immutable
-
-# Copy application code
 COPY . .
 
-
-# Final stage for app image
-FROM base
-
-# Copy built application
-COPY --from=build /app /app
-
-# Start the server by default, this can be overwritten at runtime
-EXPOSE 3000
-CMD [ "yarn", "run", "start" ]
+ENTRYPOINT [ "node" ]
+CMD ["Ultraviolet-App/src/index.js"]
